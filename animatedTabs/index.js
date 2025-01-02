@@ -1,94 +1,89 @@
-import React, {useEffect, useState} from 'react';
-import {View, TouchableOpacity} from 'react-native';
-import styles from './styles';
+import React, { useEffect, memo } from "react";
+import {
+  View,
+  TouchableOpacity,
+  Text,
+  StyleSheet,
+  ViewStyle,
+  TextStyle,
+} from "react-native";
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withSpring,
-} from 'react-native-reanimated';
-import {COLORS, SCREEN, SCREEN_PADDING} from '../../../constants';
-import StyledText from '../styledText';
-import {SharedStyles} from '../../../shared';
-import {useTranslation} from 'react-i18next';
+} from "react-native-reanimated";
+import { useTranslation } from "react-i18next";
+import { colors } from "../../theme";
+import { scale, width as SCREEN_WIDTH } from "../../utils";
 
-const AnimatedTabs = ({
-  onPress,
-  TABS = [],
-  containerStyle = {},
-  paddingVertical,
-  width,
-  activeIndex = 0,
+interface TabOption {
+  key: string;
+  label: string;
+}
+
+interface Props {
+  onTabPress: (index: number) => void;
+  tabs: TabOption[];
+  containerStyle?: ViewStyle;
+  tabTextStyle?: TextStyle;
+  tabStyles?: ViewStyle;
+  horizontalPadding: number;
+  activeIndex?: number;
+}
+
+const AnimatedSlidingTabs: React.FC<Props> = ({
+  onTabPress,
+  tabs,
+  containerStyle,
+  tabTextStyle,
+  horizontalPadding,
+  tabStyles,
+  activeIndex,
 }) => {
-  const {t} = useTranslation();
-  const ITEM_WIDTH = !!width
-    ? width / TABS.length
-    : (SCREEN.WIDTH - SCREEN_PADDING * 3) / TABS.length;
-  const [initialIndex, setInitialIndex] = useState(activeIndex);
-  const [height, setHeight] = useState(0);
-  const animatedValue = useSharedValue(0);
+  const { t } = useTranslation();
+  const ITEM_WIDTH = SCREEN_WIDTH / tabs.length;
+  const animatedValue = useSharedValue(activeIndex);
 
   useEffect(() => {
-    setInitialIndex(activeIndex);
+    animatedValue.value = activeIndex;
   }, [activeIndex]);
 
-  useEffect(() => {
-    animatedValue.value = initialIndex;
-    // console.log({initialIndex});
-  }, [initialIndex, animatedValue]);
-
-  const animatedIndicatorStyle = useAnimatedStyle(
-    () => ({
-      left: withSpring(ITEM_WIDTH * animatedValue.value, {
-        damping: 15,
-        mass: 1,
-        stiffness: 100,
-        overshootClamping: false,
-        restDisplacementThreshold: 0.01,
-        restSpeedThreshold: 2,
-      }),
+  const animatedIndicatorStyle = useAnimatedStyle(() => ({
+    left: withSpring(ITEM_WIDTH * animatedValue.value, {
+      damping: 15,
+      mass: 1,
+      stiffness: 100,
+      overshootClamping: false,
+      restDisplacementThreshold: 0.01,
+      restSpeedThreshold: 2,
     }),
-    [animatedValue.value, ITEM_WIDTH],
-  );
+  }));
+
   return (
     <View style={[styles.root, containerStyle]}>
-      <View
-        style={[
-          styles.container,
-          {paddingVertical: !!paddingVertical ? paddingVertical : 10},
-        ]}
-        onLayout={event => {
-          const {height} = event.nativeEvent.layout;
-          setHeight(height);
-        }}>
-        {TABS.map((item, index) => {
-          return (
-            <TouchableOpacity
-              key={index}
-              hitSlop={SharedStyles.hitSlop10}
-              onPress={() => {
-                onPress(index);
-                setInitialIndex(index);
-              }}
-              style={[styles.tabs]}>
-              <StyledText
-                variant={'REGULAR'}
-                textAlign="center"
-                color={index === initialIndex ? COLORS.WHITE : COLORS.BLACK}
-                size={14}
-                containerStyle={styles.itemContainer}>
-                {t(item)}
-              </StyledText>
-            </TouchableOpacity>
-          );
-        })}
+      <View style={styles.container}>
+        {tabs.map((item, index) => (
+          <TouchableOpacity
+            key={item.key || index}
+            onPress={() => onTabPress(index)}
+            style={[styles.tab, tabStyles]}
+          >
+            <Text
+              style={[
+                styles.tabText,
+                tabTextStyle,
+                { color: index === activeIndex ? colors.white : colors.black },
+              ]}
+            >
+              {t(item.label)}
+            </Text>
+          </TouchableOpacity>
+        ))}
         <Animated.View
           style={[
-            styles.animatedView,
+            styles.animatedIndicator,
             animatedIndicatorStyle,
-            {
-              width: ITEM_WIDTH,
-              height: height,
-            },
+            { width: ITEM_WIDTH - scale(horizontalPadding) * 2 },
           ]}
         />
       </View>
@@ -96,4 +91,30 @@ const AnimatedTabs = ({
   );
 };
 
-export default AnimatedTabs;
+export default memo(AnimatedSlidingTabs);
+
+const styles = StyleSheet.create({
+  root: {
+    overflow: "hidden",
+  },
+  container: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  tab: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  tabText: {
+    fontSize: scale(14),
+  },
+  animatedIndicator: {
+    backgroundColor: colors.theme,
+    position: "absolute",
+    zIndex: -1,
+    height: "100%",
+    borderRadius: scale(4),
+  },
+});
